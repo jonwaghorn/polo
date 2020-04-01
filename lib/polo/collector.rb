@@ -14,13 +14,15 @@ module Polo
     # ActiveSupport::Notifications block and collecting every generate SQL query.
     #
     def collect
+      base_finder = @base_class.includes(@dependency_tree).where(@base_class.primary_key => @id)
+
       unprepared_statement do
         ActiveSupport::Notifications.subscribed(collector, 'sql.active_record') do
-          base_finder = @base_class.includes(@dependency_tree).where(@base_class.primary_key => @id)
-          collect_sql(klass: @base_class, sql: base_finder.to_sql)
           base_finder.to_a
         end
       end
+
+      collect_sql(klass: @base_class, sql: base_finder.to_sql)
 
       @selects.compact.uniq
     end
@@ -54,8 +56,8 @@ module Polo
     end
 
     def unprepared_statement
-      if ActiveRecord::Base.connection.respond_to?(:unprepared_statement)
-        ActiveRecord::Base.connection.unprepared_statement do
+      if @base_class.connection.respond_to?(:unprepared_statement)
+        @base_class.connection.unprepared_statement do
           yield
         end
       else
